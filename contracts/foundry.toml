@@ -1,0 +1,22 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+test = "test"
+script = "script"
+solc = "0.8.20"
+optimizer = true
+optimizer_runs = 200
+ignored_error_codes = [6546]
+via_ir = true
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "@pythnetwork/pyth-sdk-solidity/=lib/pyth-sdk-solidity/",
+    "forge-std/=lib/forge-std/src/"
+]
+
+[rpc_endpoints]
+monad_testnet = "${NEXT_PUBLIC_MONAD_RPC}"
+
+[etherscan]
+monad_testnet = { key = "placeholder", url = "https://testnet.monadexplorer.com/api" }

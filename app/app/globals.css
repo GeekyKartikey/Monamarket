@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0E0E16;
+  --card: #16161F;
+  --border: #2A2A3A;
+  --purple: #836EF9;
+}
+
+body {
+  background: var(--bg);
+  color: #fff;
+  font-family: system-ui, sans-serif;
+}

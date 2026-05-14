@@ -1,0 +1,22 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+app/node_modules/
+
+# Next.js
+app/.next/
+app/out/
+app/dist/
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+
+# OS
+.DS_Store
+Thumbs.db
