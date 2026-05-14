@@ -25,6 +25,10 @@ const MARKET_READS = [
   "timeRemaining",   // 5
   "resolveTime",     // 6
   "pythPriceFeedId", // 7
+  "isDemo",          // 8
+  "creator",         // 9
+  "resolverBounty",  // 10
+  "creationDeposit", // 11
 ] as const;
 
 function fmtPool(wei: bigint): string {
@@ -68,15 +72,22 @@ export function MarketDetailClient({ address: marketAddress }: { address: Addres
     query: { enabled: !!userAddress, refetchInterval: POLL_MS },
   });
 
-  const question       = allData?.[0]?.result as string | undefined;
-  const outcomes       = allData?.[1]?.result as string[] | undefined;
-  const prices         = allData?.[2]?.result as bigint[] | undefined;
-  const poolBalances   = allData?.[3]?.result as bigint[] | undefined;
-  const winningOutcome = allData?.[4]?.result as number | undefined;
-  const timeRemaining  = allData?.[5]?.result as bigint | undefined;
-  const resolveTime    = allData?.[6]?.result as bigint | undefined;
-  const feedId         = allData?.[7]?.result as `0x${string}` | undefined;
-  const userPosition   = userPositionRaw as bigint[] | undefined;
+  const question        = allData?.[0]?.result as string | undefined;
+  const outcomes        = allData?.[1]?.result as string[] | undefined;
+  const prices          = allData?.[2]?.result as bigint[] | undefined;
+  const poolBalances    = allData?.[3]?.result as bigint[] | undefined;
+  const winningOutcome  = allData?.[4]?.result as number | undefined;
+  const timeRemaining   = allData?.[5]?.result as bigint | undefined;
+  const resolveTime     = allData?.[6]?.result as bigint | undefined;
+  const feedId          = allData?.[7]?.result as `0x${string}` | undefined;
+  const isDemo          = allData?.[8]?.result as boolean | undefined;
+  const creator         = allData?.[9]?.result as Address | undefined;
+  const resolverBounty  = allData?.[10]?.result as bigint | undefined;
+  const creationDeposit = allData?.[11]?.result as bigint | undefined;
+  const userPosition    = userPositionRaw as bigint[] | undefined;
+
+  const zeroAddr = "0x0000000000000000000000000000000000000000";
+  const userCreated = !!creator && creator.toLowerCase() !== zeroAddr;
 
   const resolved = winningOutcome !== undefined && (winningOutcome as number) >= 0;
   const isClosed = timeRemaining !== undefined && Number(timeRemaining) <= 0;
@@ -148,6 +159,38 @@ export function MarketDetailClient({ address: marketAddress }: { address: Addres
           {marketAddress.slice(0, 6)}…{marketAddress.slice(-4)}
         </span>
       </nav>
+
+      {/* Demo banner */}
+      {isDemo && (
+        <div
+          className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
+          style={{
+            background: "rgba(131,110,249,0.08)",
+            border: "1px solid rgba(131,110,249,0.25)",
+            color: "var(--accent)",
+          }}
+        >
+          <span className="font-semibold">Demo market</span>
+          <span style={{ color: "var(--text-secondary)" }}>
+            — resolvable at any time. Resolver earns a 0.5% bounty (max 1 MON).
+          </span>
+        </div>
+      )}
+
+      {/* User-created market banner */}
+      {userCreated && !isDemo && (
+        <div
+          className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
+          style={{
+            background: "rgba(34,197,94,0.06)",
+            border: "1px solid rgba(34,197,94,0.2)",
+            color: "var(--text-secondary)",
+          }}
+        >
+          <span>Community market · creator</span>
+          <span className="font-mono text-xs">{creator!.slice(0, 8)}…{creator!.slice(-4)}</span>
+        </div>
+      )}
 
       {/* Status pill + question */}
       <div className="space-y-3">
@@ -302,6 +345,32 @@ export function MarketDetailClient({ address: marketAddress }: { address: Addres
               </span>
             </div>
 
+            {/* Resolver bounty — shown after resolution */}
+            {resolverBounty !== undefined && resolverBounty > 0n && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-txt-muted shrink-0">Resolver bounty</span>
+                <span
+                  className="font-mono text-xs"
+                  style={{ color: "var(--accent)", fontFeatureSettings: '"tnum"' }}
+                >
+                  {fmtPool(resolverBounty)} MON
+                </span>
+              </div>
+            )}
+
+            {/* Creator deposit — shown on unresolved user-created markets */}
+            {userCreated && !resolved && creationDeposit !== undefined && creationDeposit > 0n && (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-txt-muted shrink-0">Creator deposit</span>
+                <span
+                  className="font-mono text-xs text-txt-secondary"
+                  style={{ fontFeatureSettings: '"tnum"' }}
+                >
+                  {fmtPool(creationDeposit)} MON (refunded on resolve)
+                </span>
+              </div>
+            )}
+
             {resolveTime && (
               <div className="flex items-start justify-between gap-2">
                 <span className="text-txt-muted flex items-center gap-1.5 shrink-0">
@@ -346,12 +415,13 @@ export function MarketDetailClient({ address: marketAddress }: { address: Addres
             </div>
           </div>
 
-          {/* Resolve button — multicall data passed so it skips 3 stray reads */}
+          {/* Resolve button — multicall data passed so it skips stray reads */}
           <ResolveButton
             marketAddress={marketAddress}
             resolveTime={resolveTime}
             feedId={feedId}
             isResolved={resolved}
+            isDemo={isDemo}
             onResolved={handleRefresh}
           />
         </div>

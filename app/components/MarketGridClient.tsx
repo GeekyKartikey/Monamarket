@@ -6,7 +6,7 @@ import { TrendingUp, BarChart3, Zap } from "lucide-react";
 import { FACTORY_ABI, FACTORY_ADDRESS, MARKET_ABI } from "@/lib/contracts";
 import { MarketCard, type MarketData } from "@/components/MarketCard";
 
-const READS_PER_MARKET = 6;
+const READS_PER_MARKET = 8;
 const POLL_MS  = 15_000;
 const STALE_MS = 10_000;
 
@@ -17,6 +17,8 @@ const MARKET_FUNCTIONS = [
   "getPoolBalances",
   "timeRemaining",
   "winningOutcome",
+  "isDemo",
+  "creator",
 ] as const;
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -139,6 +141,8 @@ export function MarketGridClient() {
       poolBalances:   allData?.[base + 3]?.result as bigint[] | undefined,
       timeRemaining:  allData?.[base + 4]?.result as bigint | undefined,
       winningOutcome: allData?.[base + 5]?.result as number | undefined,
+      isDemo:         allData?.[base + 6]?.result as boolean | undefined,
+      creator:        allData?.[base + 7]?.result as Address | undefined,
     };
   });
 

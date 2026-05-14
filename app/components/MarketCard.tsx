@@ -12,6 +12,8 @@ export interface MarketData {
   poolBalances?: bigint[];
   timeRemaining?: bigint;
   winningOutcome?: number;
+  isDemo?: boolean;
+  creator?: Address;
 }
 
 interface Props {
@@ -55,7 +57,9 @@ function countdownClass(secs: bigint): string {
 }
 
 export function MarketCard({ data }: Props) {
-  const { address, question, outcomes, prices, poolBalances, timeRemaining, winningOutcome } = data;
+  const { address, question, outcomes, prices, poolBalances, timeRemaining, winningOutcome, isDemo, creator } = data;
+  const zeroAddr = "0x0000000000000000000000000000000000000000";
+  const userCreated = !!creator && creator.toLowerCase() !== zeroAddr;
 
   const totalPool = poolBalances?.reduce((a, b) => a + b, 0n) ?? 0n;
   const resolved  = winningOutcome !== undefined && (winningOutcome as number) >= 0;
@@ -90,11 +94,18 @@ export function MarketCard({ data }: Props) {
               {question}
             </h3>
           )}
-          <div className="shrink-0 mt-0.5">
+          <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
             {resolved ? (
               <Pill variant="success">Resolved</Pill>
+            ) : isDemo ? (
+              <Pill variant="accent">Demo</Pill>
             ) : (
               <Pill>{deriveCategory(question)}</Pill>
+            )}
+            {userCreated && !isDemo && (
+              <span className="text-[9px] text-txt-muted/70 uppercase tracking-wide">
+                Community
+              </span>
             )}
           </div>
         </div>

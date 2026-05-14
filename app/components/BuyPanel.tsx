@@ -12,6 +12,7 @@ import { Loader2, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { MARKET_ABI } from "@/lib/contracts";
+import { FaucetPrompt } from "@/components/FaucetPrompt";
 
 interface Props {
   marketAddress: Address;
@@ -425,6 +426,9 @@ export function BuyPanel({
               </div>
             </div>
           )}
+
+          {/* Low-balance faucet prompt */}
+          {isConnected && !tradingDisabled && <FaucetPrompt />}
 
           {/* CTA state machine */}
           {!isConnected ? (

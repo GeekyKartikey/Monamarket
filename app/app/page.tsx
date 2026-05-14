@@ -1,4 +1,5 @@
 // Server Component — hero HTML renders instantly; chain reads stay in the client island
+import Link from "next/link";
 import { MarketGridClient } from "@/components/MarketGridClient";
 import { OnboardingTrigger } from "@/components/OnboardingTrigger";
 import { Pill } from "@/components/ui/Pill";
@@ -35,6 +36,27 @@ function Hero() {
         >
           Open source ↗
         </Pill>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+        <Link
+          href="/create"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+          style={{ background: "var(--accent)" }}
+        >
+          + Create a market
+        </Link>
+        <Link
+          href="/about"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all"
+          style={{
+            color: "var(--text-secondary)",
+            background: "var(--surface-2)",
+            border: "1px solid var(--monad-border)",
+          }}
+        >
+          How it works
+        </Link>
       </div>
     </div>
   );

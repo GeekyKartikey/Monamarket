@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "./providers";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { NetworkGuard } from "@/components/NetworkGuard";
 import "./globals.css";
 
 // Self-hosted via next/font — no external font request, zero FOUT, display:swap
@@ -69,6 +70,17 @@ export default function RootLayout({
                   Portfolio
                 </a>
                 <a
+                  href="/create"
+                  className="text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+                  style={{
+                    color: "var(--accent)",
+                    background: "rgba(131,110,249,0.10)",
+                    border: "1px solid rgba(131,110,249,0.25)",
+                  }}
+                >
+                  + Create
+                </a>
+                <a
                   href="/about"
                   className="text-sm text-txt-secondary hover:text-txt-primary transition-colors"
                 >
@@ -83,6 +95,9 @@ export default function RootLayout({
           <main className="max-w-7xl mx-auto px-6 py-8 w-full flex-1">
             {children}
           </main>
+
+          {/* ── Wrong-chain banner ───────────────────────────────────────── */}
+          <NetworkGuard />
 
           {/* ── Footer ───────────────────────────────────────────────────── */}
           <footer className="border-t border-monad-border/40 mt-auto shrink-0">
