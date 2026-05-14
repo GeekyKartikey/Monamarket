@@ -1,5 +1,6 @@
 // Server Component — hero HTML renders instantly; chain reads stay in the client island
 import { MarketGridClient } from "@/components/MarketGridClient";
+import { OnboardingTrigger } from "@/components/OnboardingTrigger";
 import { Pill } from "@/components/ui/Pill";
 
 function Hero() {
@@ -45,6 +46,8 @@ export default function HomePage() {
       <Hero />
       {/* Client island — all wagmi reads live here, hero above is already painted */}
       <MarketGridClient />
+      {/* Deferred first-visit guide — dynamic import, fires on idle */}
+      <OnboardingTrigger />
     </div>
   );
 }

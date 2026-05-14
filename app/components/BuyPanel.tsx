@@ -192,6 +192,10 @@ export function BuyPanel({
       {
         onSuccess: () => {
           toast.success("Claimed!", { id: toastId });
+          // Dynamic import — only loads canvas-confetti on actual claim
+          import("canvas-confetti").then(({ default: confetti }) => {
+            confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+          });
           onClaimSuccess?.();
         },
         onError: (e) => toast.error(e.message.slice(0, 100), { id: toastId }),

@@ -133,6 +133,9 @@ function PositionCard({
       {
         onSuccess: () => {
           toast.success("Claimed!", { id: toastId });
+          import("canvas-confetti").then(({ default: confetti }) => {
+            confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
+          });
           onClaimed();
         },
         onError: (e) => toast.error(e.message.slice(0, 100), { id: toastId }),
