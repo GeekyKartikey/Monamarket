@@ -5,6 +5,7 @@ import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { wagmiConfig } from "@/lib/wagmi";
 import { Toaster } from "sonner";
+import { TOKENS } from "@/lib/design-tokens";
 import "@rainbow-me/rainbowkit/styles.css";
 
 const queryClient = new QueryClient();
@@ -15,9 +16,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <RainbowKitProvider
           theme={darkTheme({
-            accentColor: "#836EF9",
-            accentColorForeground: "white",
+            accentColor: TOKENS.accent,
+            accentColorForeground: TOKENS.textPrimary,
             borderRadius: "medium",
+            overlayBlur: "small",
           })}
         >
           {children}
@@ -26,9 +28,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
             position="bottom-right"
             toastOptions={{
               style: {
-                background: "#16161F",
-                border: "1px solid #2A2A3A",
-                color: "#fff",
+                background: TOKENS.surface,
+                border: `1px solid ${TOKENS.border}`,
+                color: TOKENS.textPrimary,
+                fontFamily: "var(--font-inter), system-ui, sans-serif",
               },
             }}
           />

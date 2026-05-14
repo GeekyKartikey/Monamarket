@@ -2,15 +2,117 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design tokens — CSS custom properties ─────────────────────────── */
+/* Mirror of app/lib/design-tokens.ts. Keep in sync. */
 :root {
-  --bg: #0E0E16;
-  --card: #16161F;
-  --border: #2A2A3A;
-  --purple: #836EF9;
+  /* Background layers */
+  --bg:        #0a0a12;   /* page — near-black with 2-3% purple tint */
+  --surface:   #13131e;   /* card / raised panel */
+  --surface-2: #1c1c2a;   /* nested panel (buy panel inside detail page) */
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.08); /* low-opacity, slight purple warmth */
+
+  /* Text */
+  --text-primary:   #ffffff;
+  --text-secondary: #a0a0b8; /* muted, slight purple cast */
+  --text-muted:     #52526a;
+
+  /* Brand — Monad purple */
+  --accent:         #836EF9;
+  --accent-hover:   #9b8afb;
+  --accent-pressed: #6b55f0;
+
+  /* Semantic status */
+  --success: #22c55e;  /* YES / profit / confirmed */
+  --danger:  #ef4444;  /* NO / loss / failed */
+  --warning: #f59e0b;  /* resolves soon / pending tx */
+
+  /* Elevation — tiny purple cast, depth from bg tints not heavy shadows */
+  --shadow-card: 0 0 0 1px rgba(131, 110, 249, 0.06),
+                 0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-panel: 0 0 0 1px rgba(131, 110, 249, 0.1),
+                  0 8px 32px rgba(0, 0, 0, 0.6);
 }
 
-body {
-  background: var(--bg);
-  color: #fff;
-  font-family: system-ui, sans-serif;
+/* ─── Base layer ─────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Prevent layout shift from scrollbar appearing */
+    scrollbar-gutter: stable;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font-inter), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevent iOS font size inflation */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Focus ring — accessible, purple-tinted */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Scrollbar — subtle, matches theme */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Reduce all non-essential motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    html { scroll-behavior: auto !important; }
+  }
+}
+
+/* ─── Utility overrides ──────────────────────────────────────────────── */
+@layer utilities {
+  /*
+   * font-mono → Inter with tabular figures.
+   * No separate monospace font file needed — saves a font request.
+   * "tnum" = tabular numbers (digits all same width, no jitter on updates).
+   */
+  .font-mono {
+    font-family: var(--font-inter), system-ui, sans-serif;
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Skeleton shimmer — stops as soon as element is removed from DOM */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--surface) 25%,
+      rgba(255, 255, 255, 0.04) 50%,
+      var(--surface) 75%
+    );
+    background-size: 800px 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
 }
