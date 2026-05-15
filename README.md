@@ -37,18 +37,19 @@ A Polymarket-style on-chain prediction market built on **Monad testnet**. Users 
 
 ## Deployed contracts (Monad testnet · chain 10143)
 
-> These are the original v1 contracts. Deploy v2 with the new factory to get user-created markets and resolver bounties.
-
 | Contract | Address |
 |----------|---------|
-| MarketFactory v1 | `0xB629D6EAF379A8484b5E669BFe35dCaF8017b852` |
-| Market 1 — BTC/USD | `0x2b2892586573b1414DfDebB7A2DA70972e118749` |
-| Market 2 — ETH/USD | `0xA407c17012a6242E3a8763D6915f6c6C97a5b0BA` |
-| Market 3 — MON/USD | `0x91580C797b97523652B5722DD9B504972e9F8fc2` |
+| MarketFactory v2 | `0x5E9F9fA469D32d0BE182dcDB5B5D008C9DC24b67` |
+| Market 1 — BTC/USD long | `0x8029DeE920Aaf032AC254C3572580489C5f10d01` |
+| Market 2 — ETH/USD long | `0xBC35E2781fb3E50E15542dB72A23c4045a3E437c` |
+| Market 3 — MON/USD long | `0x1f4C2f9A53756C3Bb46E494161561257171D618f` |
+| Demo 1 — BTC/USD 1h | `0xA416b10E4F857E53029F80a456B92C269a4B079b` |
+| Demo 2 — ETH/USD 6h | `0x8f8e291309f3a7f305dfc3599Ce92299e42b53FC` |
+| Demo 3 — MON/USD 24h | `0x6b56Ca7395320A38DFf5d34e0545937Bd52a75B8` |
 
 ---
 
-## Seeded markets (v2 deploy)
+## Seeded markets
 
 | # | Question | Oracle feed | Resolution type | Closes |
 |---|----------|-------------|-----------------|--------|
@@ -186,7 +187,7 @@ Open `app/.env.local` and fill in:
 
 ```env
 NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=   # free at cloud.walletconnect.com
-NEXT_PUBLIC_FACTORY_ADDRESS=0xB629D6EAF379A8484b5E669BFe35dCaF8017b852
+NEXT_PUBLIC_FACTORY_ADDRESS=0x5E9F9fA469D32d0BE182dcDB5B5D008C9DC24b67
 ```
 
 ### 6. Run the frontend
@@ -200,8 +201,6 @@ pnpm dev
 ---
 
 ## Deploy your own contracts
-
-> The original v1 contracts are live at the addresses above. Follow this to deploy v2 with user-created markets and resolver bounties.
 
 ```bash
 cd contracts
