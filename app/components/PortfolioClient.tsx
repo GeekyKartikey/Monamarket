@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useAccount, useReadContract, useReadContracts, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatEther, type Address } from "viem";
-import { Loader2, TrendingUp, ExternalLink } from "lucide-react";
+import { Loader2, TrendingUp, ExternalLink, Plus } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { FACTORY_ABI, FACTORY_ADDRESS, MARKET_ABI } from "@/lib/contracts";
 
+type PortfolioTab = "positions" | "my-markets";
+
 const READS_PER_MARKET = 5;
+const CREATOR_READS_PER_MARKET = 5;
 const STALE_MS = 15_000;
 
 // Per-market reads: question, getOutcomes, winningOutcome, getPoolBalances, getUserPosition
@@ -20,6 +24,15 @@ const POSITION_FUNCTIONS = [
   "getUserPosition",
 ] as const;
 
+// Per-creator-market reads: question, winningOutcome, getPoolBalances, isDemo, creationDeposit
+const CREATOR_MARKET_FUNCTIONS = [
+  "question",
+  "winningOutcome",
+  "getPoolBalances",
+  "isDemo",
+  "creationDeposit",
+] as const;
+
 interface MarketRow {
   address: Address;
   question?: string;
@@ -27,6 +40,15 @@ interface MarketRow {
   winningOutcome?: number;
   poolBalances?: bigint[];
   userPosition?: bigint[];
+}
+
+interface CreatorMarketRow {
+  address: Address;
+  question?: string;
+  winningOutcome?: number;
+  poolBalances?: bigint[];
+  isDemo?: boolean;
+  creationDeposit?: bigint;
 }
 
 function fmtMon(wei: bigint): string {
@@ -330,11 +352,133 @@ function EmptyPositions() {
   );
 }
 
+// ── Creator market card ───────────────────────────────────────────────────────
+
+function CreatorMarketCard({ row }: { row: CreatorMarketRow }) {
+  const resolved = row.winningOutcome !== undefined && (row.winningOutcome as number) >= 0;
+  const depositRefunded = resolved && (row.creationDeposit ?? 0n) > 0n;
+  const totalPool = row.poolBalances?.reduce((a, b) => a + b, 0n) ?? 0n;
+
+  return (
+    <div
+      className="rounded-xl p-4 space-y-3"
+      style={{
+        background: "var(--surface-2)",
+        border: "1px solid var(--monad-border)",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <Link
+          href={`/market/${row.address}`}
+          className="text-sm font-medium line-clamp-2 hover:text-accent transition-colors"
+          style={{ color: "var(--text-primary)" }}
+        >
+          {row.question ?? "…"}
+        </Link>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {row.isDemo && (
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                background: "rgba(131,110,249,0.12)",
+                color: "var(--accent)",
+                border: "1px solid rgba(131,110,249,0.25)",
+              }}
+            >
+              Demo
+            </span>
+          )}
+          <span
+            className="text-xs font-semibold"
+            style={{ color: resolved ? "var(--success)" : "var(--accent)" }}
+          >
+            {resolved ? "Resolved" : "Open"}
+          </span>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="flex items-center gap-4 text-xs text-txt-muted">
+        <span>
+          Pool{" "}
+          <span className="font-mono text-txt-primary">
+            {parseFloat(formatEther(totalPool)).toFixed(2)} MON
+          </span>
+        </span>
+        {row.creationDeposit !== undefined && row.creationDeposit > 0n && (
+          <span>
+            Deposit{" "}
+            <span
+              className="font-mono"
+              style={{ color: depositRefunded ? "var(--success)" : "var(--text-secondary)" }}
+            >
+              {depositRefunded ? "refunded" : `${fmtMon(row.creationDeposit)} MON locked`}
+            </span>
+          </span>
+        )}
+      </div>
+
+      {/* Footer links */}
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/market/${row.address}`}
+          className="text-xs font-medium transition-colors"
+          style={{ color: "var(--accent)" }}
+        >
+          {resolved ? "View result →" : "Manage →"}
+        </Link>
+        <a
+          href={`https://testnet.monadexplorer.com/address/${row.address}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 text-xs transition-colors"
+          style={{ color: "var(--text-muted)" }}
+        >
+          {row.address.slice(0, 8)}…{row.address.slice(-6)}
+          <ExternalLink size={10} />
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function EmptyCreatorMarkets() {
+  return (
+    <div className="text-center py-16 space-y-4">
+      <Plus
+        size={40}
+        className="mx-auto"
+        style={{ color: "var(--text-muted)" }}
+      />
+      <div>
+        <p className="text-txt-secondary font-medium">No markets created yet.</p>
+        <p className="text-sm text-txt-muted mt-1">
+          Create a market and earn a 0.1 MON deposit back when it resolves.
+        </p>
+      </div>
+      <Link
+        href="/create"
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+        style={{
+          background: "rgba(131,110,249,0.12)",
+          color: "var(--accent)",
+          border: "1px solid rgba(131,110,249,0.25)",
+        }}
+      >
+        + Create a market
+      </Link>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function PortfolioClient() {
   const { address: userAddress, isConnected } = useAccount();
+  const [tab, setTab] = useState<PortfolioTab>("positions");
 
+  // All markets (for position reads)
   const { data: marketsRaw, isLoading: marketsLoading, refetch: refetchAll } =
     useReadContract({
       address: FACTORY_ADDRESS,
@@ -343,7 +487,18 @@ export function PortfolioClient() {
       query: { staleTime: 30_000 },
     });
 
+  // Markets created by this user
+  const { data: creatorMarketsRaw, isLoading: creatorMarketsLoading } =
+    useReadContract({
+      address: FACTORY_ADDRESS,
+      abi: FACTORY_ABI,
+      functionName: "getMarketsByCreator",
+      args: [userAddress ?? "0x0000000000000000000000000000000000000000"],
+      query: { enabled: !!userAddress, staleTime: 30_000 },
+    });
+
   const marketList = (marketsRaw as Address[] | undefined) ?? [];
+  const creatorMarketList = (creatorMarketsRaw as Address[] | undefined) ?? [];
 
   // Batch all position reads in one multicall — avoids N+1 round trips
   const { data: allData, isLoading: dataLoading } = useReadContracts({
@@ -361,8 +516,25 @@ export function PortfolioClient() {
     },
   });
 
+  // Batch creator market reads
+  const { data: creatorData, isLoading: creatorDataLoading } = useReadContracts({
+    contracts: creatorMarketList.flatMap((addr) =>
+      CREATOR_MARKET_FUNCTIONS.map((fn) => ({
+        address: addr,
+        abi: MARKET_ABI,
+        functionName: fn,
+      }))
+    ),
+    query: {
+      enabled: creatorMarketList.length > 0 && !!userAddress,
+      staleTime: STALE_MS,
+    },
+  });
+
   const isLoading =
     marketsLoading || (marketList.length > 0 && !!userAddress && dataLoading);
+  const isCreatorLoading =
+    creatorMarketsLoading || (creatorMarketList.length > 0 && creatorDataLoading);
 
   // Build per-market rows
   const rows: MarketRow[] = marketList.map((addr, i) => {
@@ -377,6 +549,19 @@ export function PortfolioClient() {
     };
   });
 
+  // Build creator market rows
+  const creatorRows: CreatorMarketRow[] = creatorMarketList.map((addr, i) => {
+    const base = i * CREATOR_READS_PER_MARKET;
+    return {
+      address:         addr,
+      question:        creatorData?.[base + 0]?.result as string | undefined,
+      winningOutcome:  creatorData?.[base + 1]?.result as number | undefined,
+      poolBalances:    creatorData?.[base + 2]?.result as bigint[] | undefined,
+      isDemo:          creatorData?.[base + 3]?.result as boolean | undefined,
+      creationDeposit: creatorData?.[base + 4]?.result as bigint | undefined,
+    };
+  });
+
   // Only show markets where user has any shares
   const myRows = rows.filter((r) =>
     r.userPosition?.some((s) => s > 0n)
@@ -384,8 +569,6 @@ export function PortfolioClient() {
 
   const resolved = (r: MarketRow) =>
     r.winningOutcome !== undefined && (r.winningOutcome as number) >= 0;
-  const isClosed = (r: MarketRow) =>
-    resolved(r); // closed markets eventually resolve; open = not resolved
 
   const claimable = myRows.filter(
     (r) => resolved(r) && estimatePayout(r) > 0n
@@ -436,92 +619,137 @@ export function PortfolioClient() {
       <div>
         <h1 className="text-2xl font-bold">Portfolio</h1>
         <p className="text-txt-muted text-sm mt-1">
-          Your positions across all prediction markets.
+          Your positions and created markets.
         </p>
       </div>
 
-      {/* Summary stat cards */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard
-          label="Deployed"
-          value={isLoading ? "" : `${fmtMon(totalDeployed)} MON`}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Claimable"
-          value={isLoading ? "" : `${fmtMon(totalClaimable)} MON`}
-          sub={
-            !isLoading && claimable.length > 0
-              ? `${claimable.length} market${claimable.length > 1 ? "s" : ""}`
-              : undefined
-          }
-          accent={!isLoading && totalClaimable > 0n}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Positions"
-          value={isLoading ? "" : String(myRows.length)}
-          loading={isLoading}
-        />
+      {/* Tab switcher */}
+      <div
+        className="flex rounded-xl p-1 gap-1 w-fit"
+        style={{ background: "var(--surface-2)" }}
+      >
+        {(["positions", "my-markets"] as PortfolioTab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200"
+            style={{
+              background: tab === t ? "var(--surface)" : "transparent",
+              color: tab === t ? "var(--text-primary)" : "var(--text-muted)",
+              boxShadow: tab === t ? "0 1px 3px rgba(0,0,0,0.3)" : "none",
+            }}
+          >
+            {t === "positions" ? "Positions" : "My markets"}
+            {t === "my-markets" && creatorRows.length > 0 && (
+              <span
+                className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full"
+                style={{
+                  background: "rgba(131,110,249,0.15)",
+                  color: "var(--accent)",
+                }}
+              >
+                {creatorRows.length}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {/* Position lists */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {[...Array(2)].map((_, i) => (
-            <div
-              key={i}
-              className="h-28 rounded-xl animate-shimmer"
-              style={{ background: "var(--surface-2)" }}
+      {/* ── Positions tab ────────────────────────────────────────────── */}
+      {tab === "positions" && (
+        <>
+          {/* Summary stat cards */}
+          <div className="grid grid-cols-3 gap-3">
+            <StatCard
+              label="Deployed"
+              value={isLoading ? "" : `${fmtMon(totalDeployed)} MON`}
+              loading={isLoading}
             />
-          ))}
-        </div>
-      ) : myRows.length === 0 ? (
-        <EmptyPositions />
-      ) : (
-        <div className="space-y-6">
-          {/* Claimable — most urgent, show first */}
-          {claimable.length > 0 && (
-            <div className="space-y-3">
-              <SectionHeader label="Ready to claim" count={claimable.length} />
-              {claimable.map((r) => (
-                <PositionCard
-                  key={r.address}
-                  row={r}
-                  onClaimed={refetchAll}
-                />
-              ))}
-            </div>
-          )}
+            <StatCard
+              label="Claimable"
+              value={isLoading ? "" : `${fmtMon(totalClaimable)} MON`}
+              sub={
+                !isLoading && claimable.length > 0
+                  ? `${claimable.length} market${claimable.length > 1 ? "s" : ""}`
+                  : undefined
+              }
+              accent={!isLoading && totalClaimable > 0n}
+              loading={isLoading}
+            />
+            <StatCard
+              label="Positions"
+              value={isLoading ? "" : String(myRows.length)}
+              loading={isLoading}
+            />
+          </div>
 
-          {/* Open positions */}
-          {open.length > 0 && (
+          {isLoading ? (
             <div className="space-y-3">
-              <SectionHeader label="Open positions" count={open.length} />
-              {open.map((r) => (
-                <PositionCard
-                  key={r.address}
-                  row={r}
-                  onClaimed={refetchAll}
+              {[...Array(2)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-28 rounded-xl animate-shimmer"
+                  style={{ background: "var(--surface-2)" }}
                 />
               ))}
             </div>
+          ) : myRows.length === 0 ? (
+            <EmptyPositions />
+          ) : (
+            <div className="space-y-6">
+              {claimable.length > 0 && (
+                <div className="space-y-3">
+                  <SectionHeader label="Ready to claim" count={claimable.length} />
+                  {claimable.map((r) => (
+                    <PositionCard key={r.address} row={r} onClaimed={refetchAll} />
+                  ))}
+                </div>
+              )}
+              {open.length > 0 && (
+                <div className="space-y-3">
+                  <SectionHeader label="Open positions" count={open.length} />
+                  {open.map((r) => (
+                    <PositionCard key={r.address} row={r} onClaimed={refetchAll} />
+                  ))}
+                </div>
+              )}
+              {lost.length > 0 && (
+                <div className="space-y-3">
+                  <SectionHeader label="Resolved (no payout)" count={lost.length} />
+                  {lost.map((r) => (
+                    <PositionCard key={r.address} row={r} onClaimed={refetchAll} />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
+        </>
+      )}
 
-          {/* Lost positions — least important */}
-          {lost.length > 0 && (
+      {/* ── My markets tab ───────────────────────────────────────────── */}
+      {tab === "my-markets" && (
+        <>
+          {isCreatorLoading ? (
             <div className="space-y-3">
-              <SectionHeader label="Resolved (no payout)" count={lost.length} />
-              {lost.map((r) => (
-                <PositionCard
-                  key={r.address}
-                  row={r}
-                  onClaimed={refetchAll}
+              {[...Array(2)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-24 rounded-xl animate-shimmer"
+                  style={{ background: "var(--surface-2)" }}
                 />
               ))}
             </div>
+          ) : creatorRows.length === 0 ? (
+            <EmptyCreatorMarkets />
+          ) : (
+            <div className="space-y-3">
+              <SectionHeader label="Markets you created" count={creatorRows.length} />
+              {creatorRows.map((r) => (
+                <CreatorMarketCard key={r.address} row={r} />
+              ))}
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

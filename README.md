@@ -2,24 +2,30 @@
 
 > ⚠️ **Testnet only — unaudited contracts — do not use with real funds.**
 
-A Polymarket-style on-chain prediction market built on **Monad testnet**. Users connect a wallet, browse open markets, buy outcome shares with MON, and let a **Pyth pull oracle** settle the result — no admin intervention required for resolution.
+A Polymarket-style on-chain prediction market built on **Monad testnet**. Users connect a wallet, browse open markets, buy outcome shares with MON, and let a **Pyth pull oracle** settle the result — no admin intervention required for resolution. Anyone can create their own market with a refundable 0.1 MON deposit.
 
 ---
 
 ## Screenshots
 
-| Homepage | Market Detail | Portfolio |
-|----------|--------------|-----------|
-| Hero + live stats strip + animated market grid | 60/40 layout — outcome bars, buy panel, market info | Summary cards + grouped positions + one-click claim |
+| Homepage | Market Detail | Portfolio | Create |
+|----------|--------------|-----------|--------|
+| Hero + live stats strip + animated market grid | 60/40 layout — outcome bars, buy panel, market info | Positions + My markets tabs, one-click claim | 5-step market creation wizard |
 
 ---
 
 ## Features
 
 - **Multi-outcome markets** — binary YES/NO or up to N price-band outcomes
+- **User-created markets** — anyone can deploy a market with a 0.1 MON refundable deposit
+- **Resolver bounty** — 0.5% of pool (max 1 MON) paid to whoever calls `resolve()` first
+- **Demo markets** — `isDemo = true` skips the time-lock so markets can be resolved at any time
 - **Parimutuel pricing** — `price[i] = pool[i] / totalPool`, updates in real time via Multicall3
 - **Pyth pull oracle** — anyone can resolve by submitting a signed VAA from Hermes; no admin required
+- **Feed allowlist** — factory enforces an allowlist of price feeds; each feed stores the Pyth contract to use
 - **RainbowKit + Wagmi v2** — MetaMask, Coinbase Wallet, WalletConnect out of the box
+- **Network guard** — wrong-chain detection with one-click switch to Monad testnet
+- **Faucet prompt** — inline low-balance CTA pointing to faucet.monad.xyz
 - **Batched on-chain reads** — all data in a single Multicall3 round-trip; 15 s poll on grid, 5 s on detail
 - **Server Components** — homepage, portfolio, about, and market shell prerender as static HTML; only chain-read islands are client bundles
 - **Mobile bottom sheet** — vaul drawer replaces inline panel on narrow viewports
@@ -31,22 +37,27 @@ A Polymarket-style on-chain prediction market built on **Monad testnet**. Users 
 
 ## Deployed contracts (Monad testnet · chain 10143)
 
+> These are the original v1 contracts. Deploy v2 with the new factory to get user-created markets and resolver bounties.
+
 | Contract | Address |
 |----------|---------|
-| MarketFactory | `0xB629D6EAF379A8484b5E669BFe35dCaF8017b852` |
+| MarketFactory v1 | `0xB629D6EAF379A8484b5E669BFe35dCaF8017b852` |
 | Market 1 — BTC/USD | `0x2b2892586573b1414DfDebB7A2DA70972e118749` |
 | Market 2 — ETH/USD | `0xA407c17012a6242E3a8763D6915f6c6C97a5b0BA` |
 | Market 3 — MON/USD | `0x91580C797b97523652B5722DD9B504972e9F8fc2` |
 
 ---
 
-## Seeded markets
+## Seeded markets (v2 deploy)
 
 | # | Question | Oracle feed | Resolution type | Closes |
 |---|----------|-------------|-----------------|--------|
 | 1 | Will BTC be above $120,000 on June 30, 2026? | BTC/USD | `ABOVE_THRESHOLD` | Jun 28, 2026 |
 | 2 | Will ETH be above $5,000 on June 30, 2026? | ETH/USD | `ABOVE_THRESHOLD` | Jun 28, 2026 |
 | 3 | What will MON's price band be on July 15, 2026? | MON/USD (beta) | `CLOSEST_TO` | Jul 13, 2026 |
+| 4 | Will BTC be above $120,000? [Demo - 1h] | BTC/USD | `ABOVE_THRESHOLD` | Demo |
+| 5 | Will ETH be above $5,000? [Demo - 6h] | ETH/USD | `ABOVE_THRESHOLD` | Demo |
+| 6 | What will MON's price band be? [Demo - 24h] | MON/USD (beta) | `CLOSEST_TO` | Demo |
 
 ---
 
@@ -73,34 +84,37 @@ A Polymarket-style on-chain prediction market built on **Monad testnet**. Users 
 Monamarket/
 ├── contracts/                     Foundry project
 │   ├── src/
-│   │   ├── PredictionMarket.sol       Core market logic (buy, resolve, claim)
-│   │   └── MarketFactory.sol          Owner-only factory; seeds 3 markets
+│   │   ├── PredictionMarket.sol       Core market logic (buy, resolve, claim, bounty)
+│   │   └── MarketFactory.sol          Feed allowlist, public createMarket, demo/admin helpers
 │   ├── script/
-│   │   └── Deploy.s.sol               Deploys factory + seeds BTC/ETH/MON markets
+│   │   └── Deploy.s.sol               Deploys factory, registers feeds, seeds 6 markets
 │   ├── test/
-│   │   ├── PredictionMarket.t.sol     Unit tests (buy, parimutuel, resolution)
-│   │   └── MarketFactory.t.sol
+│   │   ├── PredictionMarket.t.sol     27 unit tests (buy, bounty, isDemo, resolution, claim)
+│   │   └── MarketFactory.t.sol        18 unit tests (feeds, public create, demo, creator tracking)
 │   ├── scripts/
 │   │   └── export-abis.sh             Copies ABIs → app/abis/
 │   └── foundry.toml
 │
 ├── app/                           Next.js 14 frontend
 │   ├── app/
-│   │   ├── layout.tsx                 Root layout — testnet banner, nav, footer
+│   │   ├── layout.tsx                 Root layout — testnet banner, nav, NetworkGuard
 │   │   ├── page.tsx                   Homepage (Server Component) — hero + client island
-│   │   ├── loading.tsx                Route-level Suspense skeleton
+│   │   ├── create/page.tsx            Create market — 5-step wizard
 │   │   ├── about/page.tsx             Static explainer — how it works, contracts
 │   │   ├── market/[address]/page.tsx  Market detail shell (Server Component)
 │   │   └── portfolio/page.tsx         Portfolio shell (Server Component)
 │   │
 │   ├── components/
 │   │   ├── MarketGridClient.tsx       Multicall grid — stats strip + market cards
-│   │   ├── MarketCard.tsx             Outcome bars (scaleX), countdown, pool size
-│   │   ├── MarketDetailClient.tsx     60/40 detail layout — bars, info card, panel
-│   │   ├── BuyPanel.tsx               Buy/Position tabs, quick amounts, live preview
+│   │   ├── MarketCard.tsx             Outcome bars (scaleX), countdown, Demo/Community badges
+│   │   ├── MarketDetailClient.tsx     60/40 detail — demo banner, bounty/deposit info
+│   │   ├── BuyPanel.tsx               Buy/Position tabs, quick amounts, live preview, FaucetPrompt
 │   │   ├── BuySheet.tsx               vaul bottom sheet for mobile buy flow
-│   │   ├── PortfolioClient.tsx        Batched multicall — stat cards, grouped positions
-│   │   ├── ResolveButton.tsx          Fetches Pyth VAA, submits resolve()
+│   │   ├── CreateMarketClient.tsx     5-step market creation form
+│   │   ├── PortfolioClient.tsx        Positions + My markets tabs
+│   │   ├── ResolveButton.tsx          Fetches Pyth VAA, submits resolve(), shows bounty copy
+│   │   ├── NetworkGuard.tsx           Wrong-chain banner with one-click switch
+│   │   ├── FaucetPrompt.tsx           Low-balance faucet CTA
 │   │   ├── OnboardingModal.tsx        3-slide first-visit guide (framer-motion)
 │   │   ├── OnboardingTrigger.tsx      requestIdleCallback + localStorage gate
 │   │   ├── ConnectWalletGate.tsx      Read-only wrapper for unconnected state
@@ -110,7 +124,7 @@ Monamarket/
 │   └── lib/
 │       ├── wagmi.ts                   Monad chain config (chainId 10143) + Multicall3
 │       ├── pyth.ts                    Hermes main + beta client helpers
-│       ├── contracts.ts               ABIs + factory address constant
+│       ├── contracts.ts               ABIs + factory address + CREATION_DEPOSIT constant
 │       └── design-tokens.ts           Single source of truth for brand colors
 │
 ├── .env.example
@@ -144,7 +158,7 @@ forge install
 ```bash
 forge build
 forge test -vv
-# Expected: all tests passing
+# Expected: 45 tests passing (27 market + 18 factory)
 ```
 
 ### 3. Export ABIs to the frontend
@@ -187,7 +201,7 @@ pnpm dev
 
 ## Deploy your own contracts
 
-> The contracts are already live at the addresses above. Only follow this section to redeploy.
+> The original v1 contracts are live at the addresses above. Follow this to deploy v2 with user-created markets and resolver bounties.
 
 ```bash
 cd contracts
@@ -221,17 +235,46 @@ buy(outcomeIndex) payable
 price[i] = poolBalances[i] * 1e18 / totalPool   // fraction of 1e18
 
 claim()
-  → payout = userShares[user][winner] * totalPool / poolBalances[winner]
+  effectivePool = totalPool - resolverBounty
+  payout = userShares[user][winner] * effectivePool / poolBalances[winner]
 ```
 
 > LMSR market scoring is planned for v2.
 
+### Resolver bounty
+
+Anyone who calls `resolve()` earns a bounty from the pool:
+
+```
+bounty = min(totalPool * 0.5%, 1 MON)
+effectivePool = totalPool - bounty   // winners share this reduced pool
+```
+
+The bounty is deducted before payouts so winners and losers each contribute proportionally. This incentivises permissionless resolution with no keeper bot required.
+
+### Creator deposit
+
+User-created markets require a **0.1 MON deposit** sent with `createMarket()`. The deposit is:
+- Forwarded to the market contract at construction
+- Refunded to the creator address when `resolve()` is called successfully
+- Lost if the market is never resolved (incentive to design resolvable questions)
+
+Admin and demo markets (deployed by the factory owner) have no deposit requirement.
+
+### Demo markets
+
+Markets created with `isDemo = true`:
+- Skip the `resolveTime` time-lock — resolvable at any moment
+- Use `block.timestamp` as the Pyth VAA window anchor, so a fresh price update is always valid
+- Useful for testing resolution flow without waiting days/weeks
+
 ### Resolution flow
 
-1. Anyone calls `resolve(pythUpdateData)` after `resolveTime`
-2. Contract calls `pyth.parsePriceFeedUpdates()` with a ±60 min window around `resolveTime`
+1. Anyone calls `resolve(pythUpdateData)` — after `resolveTime` for regular markets, anytime for demo markets
+2. Contract calls `pyth.parsePriceFeedUpdates()` with a ±60 min window around the reference time
 3. Price is normalised to expo = −8 (USD × 10⁸) and compared against stored thresholds
-4. `winningOutcome` is set permanently; winners call `claim()`
+4. `winningOutcome` is set permanently; resolver bounty is paid; creator deposit is refunded
+5. Winners call `claim()` to receive their proportional share of the effective pool
 
 ### Resolution types
 
@@ -240,6 +283,15 @@ claim()
 | `ABOVE_THRESHOLD` | `price >= threshold` → outcome 0 (YES) wins |
 | `BELOW_THRESHOLD` | `price < threshold` → outcome 0 (YES) wins |
 | `CLOSEST_TO` | outcome whose midpoint threshold is nearest to the reported price wins |
+
+### Creating a market (UI)
+
+1. Click **+ Create** in the nav
+2. Enter a question (min 10 chars), outcomes, price feed, resolution type, threshold, and timeline
+3. Review the summary, confirm the 0.1 MON deposit in your wallet
+4. Market goes live immediately — share the link to attract traders
+5. After `resolveTime`, anyone can resolve and earn the bounty
+6. Your 0.1 MON deposit is returned automatically on resolution
 
 ### Oracle addresses (Monad testnet)
 
@@ -267,9 +319,10 @@ Set the environment variables from `.env.example` in the Vercel dashboard under 
 | Route | Render | Description |
 |-------|--------|-------------|
 | `/` | Static | Hero + market grid (client island) |
+| `/create` | Static | 5-step market creation wizard |
 | `/about` | Static | How it works, oracle mechanics, contracts |
 | `/market/[address]` | Dynamic | Market detail — outcome bars, buy panel, resolve |
-| `/portfolio` | Static | Wallet positions — grouped by status, claim flow |
+| `/portfolio` | Static | Wallet positions + created markets |
 
 ---
 
@@ -277,8 +330,8 @@ Set the environment variables from `.env.example` in the Vercel dashboard under 
 
 - [ ] LMSR pricing (replaces parimutuel for better price discovery)
 - [ ] Protocol fee (2%, v2)
-- [ ] Market creation UI (factory is currently owner-only)
 - [ ] Subgraph / event indexer for trade history
+- [ ] CLOSEST_TO market creation UI (midpoint entry per band)
 - [ ] Mainnet deployment
 
 ---
